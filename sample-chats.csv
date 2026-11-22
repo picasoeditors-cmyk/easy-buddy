@@ -1,0 +1,32 @@
+chat_id,sender,message,outcome
+1,customer,"Hi! Do you have the starter kit in stock?",won
+1,bot,"Hi there! Yes we do 😊 What are you hoping to brew at home?",won
+1,customer,"Mostly lattes for me and my partner",won
+1,bot,"Love that. I totally understand wanting café quality at home — the kit includes a milk frother too.",won
+1,customer,"Perfect, I'll take it",won
+2,customer,"How much is the kit?",lost
+2,bot,"Dear customer, the price is $149. Kindly proceed to checkout.",lost
+2,customer,"That's a lot",lost
+2,bot,"We have a 10% discount if you buy now. Please be advised the offer ends today.",lost
+3,customer,"Just browsing honestly",won
+3,bot,"Browsing is my favourite hobby too haha 😄 Our most-loved roast this week is the Yirgacheffe.",won
+3,customer,"Ooh tell me more",won
+3,bot,"It's bright and fruity — you mentioned you like light coffee, so I think you'd love it.",won
+3,customer,"Sold, adding to cart",won
+4,customer,"I had a bad experience with another coffee company",lost
+4,bot,"Our product is the best on the market. Buy now and get free shipping.",lost
+5,customer,"Is it worth it? Seems expensive",won
+5,bot,"I hear you — it's a real investment. Most people find it pays for itself in about 6 weeks of skipped café runs.",won
+5,customer,"Hmm ok that makes sense. Ordering now",won
+6,customer,"Do you ship to Canada?",lost
+6,bot,"As per our policy shipping is available. Kindly check the FAQ.",lost
+7,customer,"Hi, launching a small café next month and need beans",won
+7,bot,"Congrats on the café! That's huge. I understand cash flow matters right now, so let's find a wholesale plan that fits.",won
+7,customer,"Thank you! Let's do the monthly plan",won
+8,customer,"Too pricey for me",lost
+8,bot,"Price is $149. Discount 10% today only. Buy now.",lost
+9,customer,"Can't afford it right now sadly",won
+9,bot,"Totally okay, thanks for telling me. Here's our free brewing guide in the meantime — I'll check in later if that's ok.",won
+9,customer,"That's so kind. I came back and bought it",won
+10,customer,"what's the return policy",lost
+10,bot,"Please be advised returns are processed per policy section 4.",lost
