@@ -7,6 +7,7 @@
 //   • the four persona sliders (empathy, humor, warmth, persistence)
 // ─────────────────────────────────────────────────────────────────────────────
 import { level, pick, stripEmoji } from '../lib/utils'
+import { RULE_MAP } from './conversation'
 
 const lv = (persona) => ({
   e: level(persona.empathy),
@@ -150,7 +151,9 @@ const BUILDERS = {
     else if (/(return|refund|guarantee|money back|cancel)/.test(t)) answer = `Absolutely — ${b.guarantee}.`
     else if (/(review|rating|legit|trust)/.test(t)) answer = `We have ${b.proof}.`
     else if (/(how much|price|cost)/.test(t)) answer = `${cap1(b.product)} is $${b.price}, or 3 × ${third(b.price)} with split-pay. ${cap1(b.lite)} is a lighter option.`
-    else answer = `${cap1(b.product)} is our most popular choice — ${b.valueProp}.`
+    else if (new RegExp(`\\b(it|this|that|these|them|product|${b.product.replace(/^the /, '').split(' ').filter((w) => w.length > 3).join('|')})\\b`, 'i').test(t))
+      answer = `${cap1(b.product)} is our most popular choice — ${b.valueProp}.`
+    else return BUILDERS.neutral({ b, L, text, seed: 0 })
     const open = L.w === 'high' ? `Great question! 😊` : `Good question.`
     const tail = strategy === 'PITCH' && L.p !== 'low' ? ` Want me to set one aside for you?` : ` Anything else you'd like to know?`
     return [open, answer + tail]
@@ -162,25 +165,35 @@ const BUILDERS = {
     return [open, L.h === 'high' ? `Careful — it's dangerously easy to become a regular here 😄` : `Let me know if you'd like any details at all.`]
   },
 
-  neutral: ({ b, L, seed }) => [
-    L.w === 'high' ? `Got it! 😊` : `Got it.`,
-    pick(
+  // Fallback: never a robotic "Got it" — acknowledge what they actually said, then offer a path
+  neutral: ({ b, L, seed, text }) => {
+    const said = text.trim().replace(/\s+/g, ' ')
+    const quote = said.length <= 42 ? `"${said}"` : 'that'
+    if (/\?\s*$/.test(said))
+      return [
+        L.w === 'low' ? `Good question.` : `Ooh, good question 🤔`,
+        `I want to give you a proper answer about ${quote} rather than guess. Could you tell me a little more — or would you like me to bring in someone from the ${b.brand} team?`,
+      ]
+    return pick(
       [
-        `Tell me a bit more — what are you hoping to find today?`,
-        `Happy to help with anything about ${b.brand}. What would be most useful right now?`,
+        [`Thanks for sharing that${L.w === 'low' ? '.' : ' 😊'}`, `When you say ${quote}, tell me a bit more — I'd love to understand what you need.`],
+        [L.e === 'low' ? `Understood.` : `I hear you.`, `What would help most right now — a recommendation, prices, or just a friendly chat?`],
+        [`I'm all ears${L.w === 'low' ? '.' : ' 👂'}`, `Tell me a little more and I'll point you in the right direction — or ask me anything about ${b.product}.`],
       ],
       seed,
-    ),
-  ],
+    )
+  },
 }
 
 // Split very long bubbles into two natural WhatsApp-sized messages
 const splitLong = (bubbles) =>
   bubbles.flatMap((bubble) => {
     if (bubble.length < 190) return [bubble]
-    const sentences = bubble.match(/[^.!?]+[.!?]+["')\]]*\s*|[^.!?]+$/g) || [bubble]
+    // split only at sentence ends followed by a space, so links like site.com stay intact
+    const sentences = bubble.split(/(?<=[.!?])\s+/)
+    if (sentences.length < 2) return [bubble]
     const mid = Math.ceil(sentences.length / 2)
-    return [sentences.slice(0, mid).join('').trim(), sentences.slice(mid).join('').trim()].filter(Boolean)
+    return [sentences.slice(0, mid).join(' ').trim(), sentences.slice(mid).join(' ').trim()].filter(Boolean)
   })
 
 export const generateReply = ({ text, intent, limbic, persona, business }) => {
@@ -190,8 +203,10 @@ export const generateReply = ({ text, intent, limbic, persona, business }) => {
   const recall = ['ready', 'question', 'excite', 'greet', 'noBudget', 'thanks', 'neutral', 'price'].includes(intent)
     ? recallLine(memories, limbic.recalled, intent)
     : null
-  const builder = BUILDERS[intent] || BUILDERS.neutral
+  const rule = RULE_MAP[intent]
+  const builder = rule ? rule.reply : BUILDERS[intent] || BUILDERS.neutral
   let bubbles = builder({
+    prevStrategy: limbic.pfc.prevStrategy,
     b: business,
     L,
     persona,

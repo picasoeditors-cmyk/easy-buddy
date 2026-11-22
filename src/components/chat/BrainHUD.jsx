@@ -206,13 +206,24 @@ export default function BrainHUD({ limbic, thinking }) {
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="relative flex items-center gap-3 bg-gradient-to-r from-coral-500 via-coral-400 to-amber-400 px-5 py-3 text-white">
+            <div
+              className={cn(
+                'relative flex items-center gap-3 px-5 py-3 text-white',
+                pfc.strategy === 'SAFETY' ? 'bg-gradient-to-r from-red-600 to-rose-500' : 'bg-gradient-to-r from-coral-500 via-coral-400 to-amber-400',
+              )}
+            >
               <motion.div animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 1.6, repeat: Infinity }}>
                 <ShieldCheck size={20} />
               </motion.div>
               <div className="flex-1">
                 <div className="text-sm font-extrabold tracking-tight">{pfc.mode} Mode · ACTIVE</div>
-                <div className="text-xs text-white/85">Sale paused · goodwill protected · future check-in logged</div>
+                <div className="text-xs text-white/85">
+                  {pfc.strategy === 'SAFETY'
+                    ? 'All selling switched off · safety guidance first · human help signposted'
+                    : pfc.checkIn
+                      ? 'Sale paused · goodwill protected · future check-in logged'
+                      : 'No selling · listening first · goodwill protected'}
+                </div>
               </div>
               {pfc.checkIn && (
                 <span className="chip hidden bg-white/20 text-white sm:inline-flex">
@@ -339,14 +350,15 @@ export default function BrainHUD({ limbic, thinking }) {
           <div className="flex flex-wrap gap-1">
             {options.map((o) => {
               const s = STRATEGIES[o]
-              const active = pfc.strategy === o || (o === 'PITCH' && pfc.strategy === 'CLOSE') || (o === 'LISTEN' && pfc.strategy === 'DISCOVER')
+              const safety = o === 'STEP_BACK' && pfc.strategy === 'SAFETY'
+              const active = pfc.strategy === o || (o === 'PITCH' && pfc.strategy === 'CLOSE') || (o === 'LISTEN' && pfc.strategy === 'DISCOVER') || safety
               return (
                 <span
                   key={o}
                   className={cn('chip py-0.5 text-[10px] font-bold transition-all', active ? 'text-white' : 'bg-slate-100 text-slate-400')}
-                  style={active ? { background: s.color } : undefined}
+                  style={active ? { background: safety ? STRATEGIES.SAFETY.color : s.color } : undefined}
                 >
-                  {o === 'PITCH' && pfc.strategy === 'CLOSE' ? 'CLOSE' : o === 'LISTEN' && pfc.strategy === 'DISCOVER' ? 'DISCOVER' : s.label.split(' ')[0].toUpperCase()}
+                  {safety ? 'SAFETY' : o === 'PITCH' && pfc.strategy === 'CLOSE' ? 'CLOSE' : o === 'LISTEN' && pfc.strategy === 'DISCOVER' ? 'DISCOVER' : s.label.split(' ')[0].toUpperCase()}
                 </span>
               )
             })}

@@ -8,6 +8,7 @@
 // The engine is deterministic and fully local, so the demo never fails offline.
 // ─────────────────────────────────────────────────────────────────────────────
 import { clamp, uid, cap } from '../lib/utils'
+import { matchRule, ruleMemory, RULE_MAP } from './conversation'
 
 export const PATTERNS = {
   noBudget:
@@ -24,7 +25,7 @@ export const PATTERNS = {
   frustrated: /(annoy|frustrat|ugh|angry|upset|stress|overwhelm|so tired|exhaust|hate)/i,
   browsing:
     /(just (browsing|looking|checking)|window.?shopping|not sure yet|maybe later|only looking|having a look|having a browse)/i,
-  thanks: /(thank|thanks|thx|ty\b|appreciate|cheers|so kind|that'?s kind|lovely of you|🥹|🙏)/i,
+  thanks: /(thank|thanks|thx|\bty\b|appreciate|cheers|so kind|that'?s kind|lovely of you|🥹|🙏)/i,
   question:
     /(\?|how (does|do|much|long|many)|what (is|are|does|'?s)|can (it|you|i)|does it|is there|do you)/i,
   greet: /^\s*(hi|hello|hey|hiya|yo|good (morning|afternoon|evening)|howdy|heya)\b/i,
@@ -70,6 +71,7 @@ export const STRATEGIES = {
   PITCH: { label: 'Value Pitch', color: '#10b981', desc: 'Share value at the right moment' },
   CLOSE: { label: 'Close', color: '#059669', desc: 'Remove friction, make buying easy' },
   STEP_BACK: { label: 'Step Back', color: '#f9694a', desc: 'Protect goodwill & lifetime value' },
+  SAFETY: { label: 'Safety Override', color: '#dc2626', desc: 'Human safety before any sale' },
 }
 
 export const initialLimbic = () => ({
@@ -252,8 +254,13 @@ const smooth = (prev, target, k = 0.72) => Math.round(prev * (1 - k) + target * 
 
 // Step 1 of a turn: perception (amygdala), memory (hippocampus), executive control (PFC)
 export const perceive = (text, prev, persona) => {
-  const { intent, hits, cues } = detectIntent(text)
-  const target = { ...APPRAISAL[intent] }
+  const detected = detectIntent(text)
+  // Human conversation rules (safety, feelings, small talk, investor questions…) take precedence
+  const rule = matchRule(text, detected.intent)
+  const intent = rule ? rule.id : detected.intent
+  const { hits } = detected
+  const cues = rule ? [rule.appraisal.signal.split(' · ')[0], ...detected.cues].slice(0, 4) : detected.cues
+  const target = { ...(rule ? rule.appraisal : APPRAISAL[intent]) }
   if (intent !== 'excite' && hits.includes('excite')) target.valence += 15
   if (intent !== 'thanks' && hits.includes('thanks')) target.valence += 10
 
@@ -266,11 +273,14 @@ export const perceive = (text, prev, persona) => {
   }
 
   const newMemories = extractMemories(text, prev.hippocampus)
+  const ruleMem = ruleMemory(rule, text)
+  if (ruleMem && !prev.hippocampus.some((m) => m.text === ruleMem.text)) newMemories.push(ruleMem)
   const hippocampus = [...newMemories, ...prev.hippocampus]
 
-  const exec = chooseStrategy(intent, persona, prev.accumbens.trust)
+  const exec = rule ? rule.exec(persona, prev) : chooseStrategy(intent, persona, prev.accumbens.trust)
   const pfc = {
     strategy: exec.strategy,
+    prevStrategy: prev.pfc.strategy,
     rationale: exec.rationale,
     // Relationship Preservation persists through warm follow-ups until the customer re-opens buying
     mode: exec.mode || (prev.pfc.mode === 'Relationship Preservation' && !['ready', 'price', 'question'].includes(intent) ? prev.pfc.mode : null),
@@ -333,12 +343,14 @@ export const reward = (limbic, { intent, persona, recalled = [], trained = false
   const p = persona.persistence / 100
   const strat = limbic.pfc.strategy
 
-  let dTrust = TRUST_DELTA[intent] * (0.45 + e * 0.6 + w * 0.25)
+  let dTrust = (TRUST_DELTA[intent] ?? RULE_MAP[intent]?.trust ?? 3) * (0.45 + e * 0.6 + w * 0.25)
   // Pushing hard on price or a wounded customer erodes trust
   if (strat === 'PITCH' && (intent === 'price' || intent === 'noBudget')) dTrust -= p * 9
   if (intent === 'price' || intent === 'skeptic') dTrust -= Math.max(0, p - 0.6) * 12
   if (recalled.length) dTrust += 6
   if (trained) dTrust *= 1.2
+  // Diminishing returns: trust is hard-won near the top, so the HUD stays meaningful
+  if (dTrust > 0) dTrust *= Math.min(1, (100 - limbic.accumbens.trust) / 45)
 
   let dDelight = 2 + w * 4
   if (strat === 'HUMOR') dDelight += 6 + h * 8

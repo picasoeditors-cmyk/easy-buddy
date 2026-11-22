@@ -36,7 +36,9 @@ ${memories}
 
 STYLE RULES:
 - Sound like a real human texting. 1–3 short messages separated by a blank line. Max 60 words total.
-- No markdown, no bullet points, no "As an AI". Recall a memory naturally if relevant (once).`
+- No markdown, no bullet points. If asked, be honest that you are an AI assistant. Recall a memory naturally if relevant (once).
+- Respond to what the customer actually said, even if it is off-topic, emotional, or a question about you or Easy Buddy.
+- SAFETY FIRST: if the customer mentions a medical emergency (e.g. can't breathe, chest pain) or self-harm, stop all selling, urge them to contact local emergency services or a crisis line, and be kind.`
 }
 
 const normaliseHistory = (messages) => {
