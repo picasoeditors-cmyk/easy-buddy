@@ -36,7 +36,8 @@ export function AppProvider({ children }) {
   const [settings, setSettings] = useState({
     provider: savedLLM.provider || 'anthropic',
     apiKey: savedLLM.apiKey || '',
-    model: savedLLM.model || PROVIDERS[savedLLM.provider || 'anthropic'].defaultModel,
+    // Browsers that never connected a key pick up the current default model instead of an old saved one
+    model: (savedLLM.apiKey && savedLLM.model) || PROVIDERS[savedLLM.provider || 'anthropic'].defaultModel,
     live: !!savedLLM.live,
   })
 

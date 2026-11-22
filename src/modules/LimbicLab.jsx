@@ -20,7 +20,7 @@ const MAGIC_SCRIPT = [
 ]
 
 export default function LimbicLab() {
-  const { limbic, resetConversation, setPage, toast, business, liveLLM, trained } = useStore()
+  const { limbic, resetConversation, setPage, toast, business, liveLLM, trained, setSettingsOpen, settings } = useStore()
   const { send, busy, typing } = useConversation()
   const [input, setInput] = useState('')
   const [skin, setSkin] = useState('wa')
@@ -113,7 +113,18 @@ export default function LimbicLab() {
         <div>
           <ChatSimulator send={(t) => send(t, pace)} busy={busy} typing={typing} input={input} setInput={setInput} skin={skin} setSkin={setSkin} locked={scenario} />
           <div className="mx-auto mt-3 flex max-w-[380px] flex-wrap justify-center gap-2 text-[11px] text-slate-500">
-            <span className={cn('chip', liveLLM ? 'bg-indigo-50 text-indigo-600' : 'bg-emerald-50 text-emerald-700')}>{liveLLM ? 'Live LLM brain' : 'Instant Demo brain · offline-safe'}</span>
+            {liveLLM ? (
+              <button onClick={() => setSettingsOpen(true)} className="chip bg-indigo-50 text-indigo-700" title="Claude settings">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-indigo-500" /> Live Claude brain · {settings.model}
+              </button>
+            ) : (
+              <>
+                <span className="chip bg-emerald-50 text-emerald-700">Instant Demo brain · offline-safe</span>
+                <button onClick={() => setSettingsOpen(true)} className="chip bg-slate-900 text-white hover:bg-slate-700">
+                  <Sparkles size={12} /> Connect Claude
+                </button>
+              </>
+            )}
             {trained && <span className="chip bg-emerald-50 text-emerald-700">Fine-tuned on 1,240 chats</span>}
           </div>
         </div>

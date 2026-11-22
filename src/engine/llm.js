@@ -4,8 +4,66 @@
 import { STRATEGIES } from './limbic'
 
 export const PROVIDERS = {
-  anthropic: { label: 'Anthropic (Claude)', defaultModel: 'claude-sonnet-5-5', keyHint: 'sk-ant-…' },
+  anthropic: { label: 'Anthropic (Claude)', defaultModel: 'claude-opus-5-5', keyHint: 'sk-ant-…' },
   openai: { label: 'OpenAI', defaultModel: 'gpt-5-mini', keyHint: 'sk-…' },
+}
+
+// Current-generation Claude models: support output_config.effort and server-side refusal fallbacks
+const MODERN_CLAUDE = /^claude-(opus-5|sonnet-5|haiku-5|fable-5|mythos-5)/
+const FALLBACK_MODELS = /^claude-(fable-5-[12]|opus-5-5|opus-5$|sonnet-5-5)/
+
+// The SDK is loaded on demand, so the offline demo stays light and fast
+let sdkPromise = null
+const loadSdk = () => (sdkPromise ??= import('@anthropic-ai/sdk').then((m) => m.default))
+
+let cachedClient = null
+let cachedKey = null
+const claudeClient = (Anthropic, apiKey) => {
+  if (!cachedClient || cachedKey !== apiKey) {
+    cachedKey = apiKey
+    // The key belongs to the presenter and is kept only in this browser, so a browser call is intended here
+    cachedClient = new Anthropic({ apiKey, dangerouslyAllowBrowser: true, maxRetries: 1, timeout: 45_000 })
+  }
+  return cachedClient
+}
+
+const friendlyClaudeError = (Anthropic, error) => {
+  if (error instanceof Anthropic.AuthenticationError) return new Error('Claude API key was rejected — check it in Settings')
+  if (error instanceof Anthropic.PermissionDeniedError) return new Error('This API key has no access to that model')
+  if (error instanceof Anthropic.NotFoundError) return new Error('Model not found — check the model name in Settings')
+  if (error instanceof Anthropic.RateLimitError) return new Error('Claude is rate-limited right now — try again in a moment')
+  if (error instanceof Anthropic.APIConnectionError) return new Error('Could not reach Claude (offline?)')
+  if (error instanceof Anthropic.APIError) return new Error(`Claude error ${error.status ?? ''}: ${error.message}`.trim())
+  return error
+}
+
+const callClaude = async ({ apiKey, model, system, history, maxTokens, effort }) => {
+  const Anthropic = await loadSdk()
+  const client = claudeClient(Anthropic, apiKey)
+  const params = { model, max_tokens: maxTokens, system, messages: history }
+  if (MODERN_CLAUDE.test(model)) params.output_config = { effort }
+  try {
+    let response
+    if (FALLBACK_MODELS.test(model)) {
+      try {
+        response = await client.beta.messages.create({ ...params, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' })
+      } catch (error) {
+        // If this account or model rejects refusal fallbacks, retry the plain request once
+        if (!(error instanceof Anthropic.BadRequestError)) throw error
+        response = await client.messages.create(params)
+      }
+    } else {
+      response = await client.messages.create(params)
+    }
+    if (response.stop_reason === 'refusal') throw new Error('Claude declined this message')
+    return response.content
+      .filter((block) => block.type === 'text')
+      .map((block) => block.text)
+      .join('')
+      .trim()
+  } catch (error) {
+    throw friendlyClaudeError(Anthropic, error)
+  }
 }
 
 const describe = (v, low, mid, high) => (v >= 67 ? high : v >= 34 ? mid : low)
@@ -53,26 +111,13 @@ const normaliseHistory = (messages) => {
   return out
 }
 
-export const callLLM = async ({ settings, system, messages, maxTokens = 400 }) => {
+// effort 'low' keeps chat replies fast; heavier writing tasks pass 'medium'
+export const callLLM = async ({ settings, system, messages, maxTokens = 4000, effort = 'low' }) => {
   const { provider, apiKey } = settings
   const model = settings.model || PROVIDERS[provider].defaultModel
   const history = Array.isArray(messages) && messages.length && messages[0].from ? normaliseHistory(messages) : messages
 
-  if (provider === 'anthropic') {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      body: JSON.stringify({ model, max_tokens: maxTokens, system, messages: history }),
-    })
-    const data = await res.json()
-    if (!res.ok) throw new Error(data?.error?.message || `Anthropic error ${res.status}`)
-    return (data.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('').trim()
-  }
+  if (provider === 'anthropic') return callClaude({ apiKey, model, system, history, maxTokens, effort })
 
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -103,7 +148,7 @@ ${memories.map((m) => `- [${m.tag}] ${m.text}`).join('\n') || '- none'}
 
 Write a 3-email follow-up sequence: Day 1 warm check-in (no selling), Day 14 value share (give the free gift), Day 30 gentle return offer. Reference the memory notes naturally.
 Return JSON: {"emails":[{"day":1,"label":"Warm check-in","goal":"Rapport","subject":"...","preview":"...","body":["paragraph", "..."],"cta":{"label":"...","href":"https://..."}}, ...]}`
-  const text = await callLLM({ settings, system, messages: [{ role: 'user', content: prompt }], maxTokens: 1600 })
+  const text = await callLLM({ settings, system, messages: [{ role: 'user', content: prompt }], maxTokens: 16000, effort: 'medium' })
   const json = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1))
   return json.emails.slice(0, 3).map((e, i) => ({
     day: e.day ?? [1, 14, 30][i],

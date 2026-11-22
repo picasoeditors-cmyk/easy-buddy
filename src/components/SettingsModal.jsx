@@ -33,7 +33,7 @@ export default function SettingsModal() {
         settings: { ...draft, apiKey: draft.apiKey.trim() },
         system: 'Reply with exactly: Connected',
         messages: [{ role: 'user', content: 'Ping' }],
-        maxTokens: 20,
+        maxTokens: 2000,
       })
       setTestResult({ ok: true, text: out || 'Connected' })
     } catch (e) {
