@@ -4,8 +4,39 @@
 import { STRATEGIES } from './limbic'
 
 export const PROVIDERS = {
+  local: { label: 'My Claude (this laptop)', defaultModel: '', keyHint: null, noKey: true },
   anthropic: { label: 'Anthropic (Claude)', defaultModel: 'claude-opus-5-5', keyHint: 'sk-ant-…' },
   openai: { label: 'OpenAI', defaultModel: 'gpt-5-mini', keyHint: 'sk-…' },
+}
+
+// ── Local Claude Bridge: your own Claude login via Claude Code on this laptop (no API key) ──
+export const DEFAULT_BRIDGE = 'http://localhost:8787'
+
+const callBridge = async ({ url, model, system, history }) => {
+  const base = url.replace(/\/+$/, '')
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 130_000)
+  let res
+  try {
+    res = await fetch(`${base}/chat`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ system, messages: history, model: model || undefined }),
+      signal: controller.signal,
+    })
+  } catch (error) {
+    throw new Error(error.name === 'AbortError' ? 'Your Claude took too long to reply' : 'Can’t reach your Claude bridge — is Start-Claude-Bridge running? (and did you click Allow?)')
+  } finally {
+    clearTimeout(timer)
+  }
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.error || `Bridge error ${res.status}`)
+  return String(data.text || '').trim()
+}
+
+export const checkBridge = async (url = DEFAULT_BRIDGE) => {
+  const res = await fetch(`${url.replace(/\/+$/, '')}/health`)
+  return res.json()
 }
 
 // Current-generation Claude models: support output_config.effort and server-side refusal fallbacks
@@ -117,6 +148,7 @@ export const callLLM = async ({ settings, system, messages, maxTokens = 4000, ef
   const model = settings.model || PROVIDERS[provider].defaultModel
   const history = Array.isArray(messages) && messages.length && messages[0].from ? normaliseHistory(messages) : messages
 
+  if (provider === 'local') return callBridge({ url: settings.bridgeUrl || DEFAULT_BRIDGE, model, system, history })
   if (provider === 'anthropic') return callClaude({ apiKey, model, system, history, maxTokens, effort })
 
   const res = await fetch('https://api.openai.com/v1/chat/completions', {

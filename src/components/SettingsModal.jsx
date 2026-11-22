@@ -18,8 +18,10 @@ export default function SettingsModal() {
     }
   }, [settingsOpen, settings])
 
+  const isLocal = draft.provider === 'local'
+
   const save = () => {
-    const live = draft.live && draft.apiKey.trim().length > 10
+    const live = draft.live && (draft.provider === 'local' || draft.apiKey.trim().length > 10)
     setSettings({ ...draft, apiKey: draft.apiKey.trim(), live })
     setSettingsOpen(false)
     toast(live ? `Live LLM mode on — ${PROVIDERS[draft.provider].label}` : 'Instant Demo Mode on — works fully offline', 'success')
@@ -74,7 +76,7 @@ export default function SettingsModal() {
 
         {draft.live && (
           <div className="mt-5 space-y-3">
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {Object.entries(PROVIDERS).map(([id, p]) => (
                 <button
                   key={id}
@@ -85,30 +87,49 @@ export default function SettingsModal() {
                 </button>
               ))}
             </div>
-            <label className="block">
-              <span className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-                <KeyRound size={13} /> API key
-              </span>
-              <input
-                type="password"
-                autoComplete="off"
-                spellCheck={false}
-                value={draft.apiKey}
-                onChange={(e) => setDraft((d) => ({ ...d, apiKey: e.target.value }))}
-                placeholder={PROVIDERS[draft.provider].keyHint}
-                className="input font-mono"
-              />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-xs font-semibold text-slate-600">Model</span>
-              <input value={draft.model} onChange={(e) => setDraft((d) => ({ ...d, model: e.target.value }))} className="input font-mono" />
-            </label>
-            <div className="flex items-start gap-2 rounded-xl bg-slate-50 p-3 text-xs text-slate-500">
-              <Lock size={14} className="mt-0.5 shrink-0" />
-              Your key is stored only in this browser (localStorage) and sent directly to the provider. If a live call fails mid-demo, Easy Buddy silently falls back to Instant Demo Mode.
-            </div>
+            {isLocal ? (
+              <>
+                <label className="block">
+                  <span className="mb-1 block text-xs font-semibold text-slate-600">Bridge address</span>
+                  <input value={draft.bridgeUrl} onChange={(e) => setDraft((d) => ({ ...d, bridgeUrl: e.target.value }))} className="input font-mono" />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-xs font-semibold text-slate-600">Model (optional: opus, sonnet or haiku; blank uses your Claude default)</span>
+                  <input value={draft.model} placeholder="default" onChange={(e) => setDraft((d) => ({ ...d, model: e.target.value.trim() }))} className="input font-mono" />
+                </label>
+                <div className="flex items-start gap-2 rounded-xl bg-indigo-50/70 p-3 text-xs text-indigo-900">
+                  <Lock size={14} className="mt-0.5 shrink-0" />
+                  Uses your own Claude login through Claude Code on this laptop. No API key. Start it by double-clicking Start-Claude-Bridge.cmd in the easy-buddy folder, and click Allow if the browser asks about devices on your local network.
+                </div>
+              </>
+            ) : (
+              <>
+                <label className="block">
+                  <span className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-slate-600">
+                    <KeyRound size={13} /> API key
+                  </span>
+                  <input
+                    type="password"
+                    autoComplete="off"
+                    spellCheck={false}
+                    value={draft.apiKey}
+                    onChange={(e) => setDraft((d) => ({ ...d, apiKey: e.target.value }))}
+                    placeholder={PROVIDERS[draft.provider].keyHint}
+                    className="input font-mono"
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-xs font-semibold text-slate-600">Model</span>
+                  <input value={draft.model} onChange={(e) => setDraft((d) => ({ ...d, model: e.target.value }))} className="input font-mono" />
+                </label>
+                <div className="flex items-start gap-2 rounded-xl bg-slate-50 p-3 text-xs text-slate-500">
+                  <Lock size={14} className="mt-0.5 shrink-0" />
+                  Your key is stored only in this browser (localStorage) and sent directly to the provider. If a live call fails mid-demo, Easy Buddy silently falls back to Instant Demo Mode.
+                </div>
+              </>
+            )}
             <div className="flex items-center gap-3">
-              <button onClick={test} disabled={testing || draft.apiKey.trim().length < 10} className="btn-ghost py-2 text-xs">
+              <button onClick={test} disabled={testing || (!isLocal && draft.apiKey.trim().length < 10)} className="btn-ghost py-2 text-xs">
                 {testing ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />} Test connection
               </button>
               {testResult && (

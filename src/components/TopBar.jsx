@@ -24,7 +24,7 @@ export default function TopBar() {
           title="Switch AI brain mode"
         >
           {liveLLM ? <Cpu size={13} /> : <Wifi size={13} />}
-          {liveLLM ? `Live LLM · ${PROVIDERS[settings.provider].label.split(' ')[0]}` : 'Instant Demo Mode'}
+          {liveLLM ? `Live · ${settings.provider === 'local' ? 'My Claude' : PROVIDERS[settings.provider].label.split(' ')[0]}` : 'Instant Demo Mode'}
           <span className={`h-1.5 w-1.5 rounded-full ${liveLLM ? 'bg-indigo-500' : 'bg-emerald-500'} animate-pulse`} />
         </button>
 

@@ -115,7 +115,7 @@ export default function LimbicLab() {
           <div className="mx-auto mt-3 flex max-w-[380px] flex-wrap justify-center gap-2 text-[11px] text-slate-500">
             {liveLLM ? (
               <button onClick={() => setSettingsOpen(true)} className="chip bg-indigo-50 text-indigo-700" title="Claude settings">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-indigo-500" /> Live Claude brain · {settings.model}
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-indigo-500" /> Live Claude brain · {settings.provider === 'local' ? 'my Claude (this laptop)' : settings.model}
               </button>
             ) : (
               <>

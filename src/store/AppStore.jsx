@@ -3,7 +3,7 @@ import { getBusiness } from '../data/businesses'
 import { DEFAULT_PERSONA } from '../data/personas'
 import { NAV_IDS } from '../data/nav'
 import { initialLimbic } from '../engine/limbic'
-import { PROVIDERS } from '../engine/llm'
+import { PROVIDERS, DEFAULT_BRIDGE } from '../engine/llm'
 import { uid } from '../lib/utils'
 
 const Ctx = createContext(null)
@@ -37,7 +37,8 @@ export function AppProvider({ children }) {
     provider: savedLLM.provider || 'anthropic',
     apiKey: savedLLM.apiKey || '',
     // Browsers that never connected a key pick up the current default model instead of an old saved one
-    model: (savedLLM.apiKey && savedLLM.model) || PROVIDERS[savedLLM.provider || 'anthropic'].defaultModel,
+    model: ((savedLLM.apiKey || savedLLM.provider === 'local') && savedLLM.model) || PROVIDERS[savedLLM.provider || 'anthropic'].defaultModel,
+    bridgeUrl: savedLLM.bridgeUrl || DEFAULT_BRIDGE,
     live: !!savedLLM.live,
   })
 
@@ -98,7 +99,7 @@ export function AppProvider({ children }) {
     setBrandOverride(override)
   }, [])
 
-  const liveLLM = settings.live && settings.apiKey.trim().length > 10
+  const liveLLM = settings.live && (settings.provider === 'local' || settings.apiKey.trim().length > 10)
   const connectedCount = Object.values(channels).filter(Boolean).length
   const isLive = !!plan && connectedCount > 0
 
