@@ -33,13 +33,18 @@ export function AppProvider({ children }) {
   const [persona, setPersona] = useState(saved.persona || DEFAULT_PERSONA)
   const [channels, setChannels] = useState(saved.channels || { whatsapp: false, web: false, instagram: false, email: false })
   const [plan, setPlan] = useState(saved.plan || null)
-  const [settings, setSettings] = useState({
-    provider: savedLLM.provider || 'anthropic',
-    apiKey: savedLLM.apiKey || '',
-    // Browsers that never connected a key pick up the current default model instead of an old saved one
-    model: ((savedLLM.apiKey || savedLLM.provider === 'local') && savedLLM.model) || PROVIDERS[savedLLM.provider || 'anthropic'].defaultModel,
-    bridgeUrl: savedLLM.bridgeUrl || DEFAULT_BRIDGE,
-    live: !!savedLLM.live,
+  const [settings, setSettings] = useState(() => {
+    // Opened from the local Claude bridge (http://localhost:8787): use "My Claude" straight away
+    const servedByBridge = window.location.port === new URL(DEFAULT_BRIDGE).port
+    const provider = savedLLM.provider || (servedByBridge ? 'local' : 'anthropic')
+    return {
+      provider,
+      apiKey: savedLLM.apiKey || '',
+      // Browsers that never connected a key pick up the current default model instead of an old saved one
+      model: ((savedLLM.apiKey || provider === 'local') && savedLLM.model) || PROVIDERS[provider].defaultModel,
+      bridgeUrl: savedLLM.bridgeUrl || (servedByBridge ? window.location.origin : DEFAULT_BRIDGE),
+      live: savedLLM.live ?? servedByBridge,
+    }
   })
 
   const [limbic, setLimbic] = useState(initialLimbic)

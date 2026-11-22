@@ -28,10 +28,12 @@ GitHub Pages serves the `gh-pages` branch (Settings → Pages → Deploy from a 
 For a private demo on **your own laptop**, the chatbot can answer with your own Claude account. It goes through Claude Code, which ships inside the Claude desktop app.
 
 1. **Sign in once:** double-click `Sign-In-Claude.cmd`, sign in to your Claude account in the browser, and click **Authorize**.
-2. **On pitch day:** double-click `Start-Claude-Bridge.cmd` and keep that window open. It should say `Signed in: yes`.
-3. Open the site → ⚙️ Settings → **Live LLM** → **My Claude (this laptop)** → **Test connection** → **Save**. If Chrome asks to allow access to devices on your local network, click **Allow**.
+2. **On pitch day:** double-click `Start-Claude-Bridge.cmd`. Keep the black window open; it should say `Signed in: yes`.
+3. Your browser opens **http://localhost:8787**, which is Easy Buddy served from your laptop, already switched to **Live · My Claude**. Demo from that tab.
 
-The bridge (`bridge/claude-bridge.mjs`) listens only on `localhost:8787` and only answers the Easy Buddy site. If it isn't running, the chatbot falls back to the offline brain. Use this for your own demos only; real customers need an Anthropic API key on a server.
+The bridge (`bridge/claude-bridge.mjs`) listens only on this computer and only answers the Easy Buddy site. If it stops, the chatbot falls back to the offline brain. Use this for your own demos only; real customers need an Anthropic API key on a server.
+
+After changing the code, run `npm run build` so the bridge serves the new version.
 
 ---
 

@@ -15,9 +15,12 @@ import { spawn, execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const PORT = Number(process.env.BRIDGE_PORT || 8787)
 const ALLOWED_ORIGINS = new Set([
+  `http://localhost:${PORT}`,
+  `http://127.0.0.1:${PORT}`,
   'https://picasoeditors-cmyk.github.io',
   'http://localhost:5173',
   'http://localhost:4173',
@@ -197,8 +200,40 @@ const server = http.createServer((req, res) => {
     return
   }
 
+  if (req.method === 'GET') return serveSite(req, res)
+
   send(res, 404, { error: 'Not found' }, origin)
 })
+
+// ── Serve the built Easy Buddy site (dist/) so site + Claude share one address ──
+const SITE_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'dist')
+const TYPES = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.ico': 'image/x-icon',
+  '.json': 'application/json',
+  '.csv': 'text/csv; charset=utf-8',
+  '.woff2': 'font/woff2',
+}
+
+const serveSite = (req, res) => {
+  const urlPath = decodeURIComponent(new URL(req.url, 'http://localhost').pathname)
+  let file = path.resolve(SITE_DIR, '.' + (urlPath === '/' ? '/index.html' : urlPath))
+  if (!file.startsWith(SITE_DIR)) {
+    res.writeHead(403)
+    return res.end('Forbidden')
+  }
+  if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(SITE_DIR, 'index.html')
+  if (!fs.existsSync(file)) {
+    res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' })
+    return res.end('Site not built yet. Run: npm run build')
+  }
+  res.writeHead(200, { 'content-type': TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream', 'cache-control': 'no-cache' })
+  fs.createReadStream(file).pipe(res)
+}
 
 server.listen(PORT, '127.0.0.1', () => {
   const s = claudeStatus()
@@ -207,6 +242,10 @@ server.listen(PORT, '127.0.0.1', () => {
   console.log(`  Listening on http://localhost:${PORT}`)
   console.log(`  Claude Code: ${s.found ? `${s.version || 'found'} (${CLAUDE})` : 'NOT FOUND — install Claude Code or set CLAUDE_PATH'}`)
   console.log(`  Signed in:   ${s.loggedIn ? 'yes' : 'NO — run the sign-in step in the README'}`)
+  console.log(`  Open Easy Buddy: http://localhost:${PORT}`)
   console.log('  Keep this window open while you demo. Press Ctrl+C to stop.')
   console.log('')
+  if (process.env.OPEN_BROWSER === '1' && process.platform === 'win32') {
+    spawn('cmd', ['/c', 'start', '', `http://localhost:${PORT}/#launchpad`], { detached: true, stdio: 'ignore', windowsHide: true }).unref()
+  }
 })
