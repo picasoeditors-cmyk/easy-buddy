@@ -6,21 +6,22 @@ It's a static React app. There's no backend and you don't need an API key. It ru
 
 ---
 
-## Deploy to GitHub Pages in 3 steps
+## Live demo
 
-1. **Create a repo and push this folder.**
-   ```bash
-   git init && git add . && git commit -m "Easy Buddy prototype"
-   git branch -M main
-   git remote add origin https://github.com/<you>/easy-buddy.git
-   git push -u origin main
-   ```
-2. **Turn on Pages.** On GitHub, open **Settings → Pages → Build and deployment → Source** and select **GitHub Actions**.
-3. **Wait about 1 minute.** The included workflow (`.github/workflows/deploy.yml`) builds and publishes the site to `https://<you>.github.io/easy-buddy/`. Every later push to `main` redeploys it.
+**https://picasoeditors-cmyk.github.io/easy-buddy/**
 
-> Alternative (no Actions): run `npm install && npm run deploy`. This pushes `dist/` to a `gh-pages` branch. Then set Pages → Source to that branch.
+## Deploy / update GitHub Pages
+
+```bash
+npm install
+npm run deploy     # builds and publishes dist/ to the gh-pages branch
+```
+
+GitHub Pages serves the `gh-pages` branch (Settings → Pages → Deploy from a branch → `gh-pages` / root). Run `npm run deploy` again after any change; the site updates in about a minute.
 
 `vite.config.js` uses `base: './'`, so the build works under any repo name or subpath without changes.
+
+---
 
 ## Run locally
 
